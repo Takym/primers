@@ -64,7 +64,7 @@ namespace ProgrammingLanguageTalking
 
 			public God  Owner            => _owner ?? throw new NullReferenceException();
 			public T?   Value            => _value;
-			public bool HasSpaghettiCode => _owner!.HasSpaghettiCode;
+			public bool HasSpaghettiCode => false;
 
 			internal SacredGreatValue(God owner, T? value)
 			{
