@@ -17,12 +17,13 @@ namespace ProgrammingLanguageTalking
 	///  いわゆる神クラス。
 	///  <see href="https://takym.github.io/blog/general/2024/03/13/god-class.html"/>を改良して作った型。
 	/// </summary>
-	public class God : Word
+	public class God : Word, IBigBallOfMud
 	{
-		private static          ulong  _next_id    = 0;
-		private static readonly God    _inst       =  new();
-		public  static          God    Instance    => _inst;
-		public  sealed override string DisplayName { get; }
+		private static          ulong  _next_id         =  0;
+		private static readonly God    _inst            =  new();
+		public  static          God    Instance         => _inst;
+		public  sealed override string DisplayName      { get; }
+		public                  bool   HasSpaghettiCode => true;
 
 		protected private God()
 		{
@@ -53,13 +54,17 @@ namespace ProgrammingLanguageTalking
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public sealed override string ToString() => base.ToString();
 
-		public readonly record struct SacredGreatValue<T>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		God IBigBallOfMud.AsGod() => this;
+
+		public readonly record struct SacredGreatValue<T> : IBigBallOfMud
 		{
 			private readonly God? _owner;
 			private readonly T?   _value;
 
-			public God Owner => _owner ?? throw new NullReferenceException();
-			public T?  Value => _value;
+			public God  Owner            => _owner ?? throw new NullReferenceException();
+			public T?   Value            => _value;
+			public bool HasSpaghettiCode => _owner!.HasSpaghettiCode;
 
 			internal SacredGreatValue(God owner, T? value)
 			{
@@ -96,8 +101,39 @@ namespace ProgrammingLanguageTalking
 					value
 				);
 			}
+
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			God IBigBallOfMud.AsGod() => this.Owner;
 		}
 	}
 
 	public abstract class OuterDeity : God;
+
+	/// <summary>
+	///  <see href="https://ja.wikipedia.org/wiki/大きな泥だんご"/>
+	/// </summary>
+	public interface IBigBallOfMud
+	{
+		/// <summary>
+		///  <see href="https://ja.wikipedia.org/wiki/スパゲティプログラム"/>
+		/// </summary>
+		public bool HasSpaghettiCode { get; }
+
+		public God AsGod();
+	}
+
+	/// <summary>
+	///  <see href="https://ja.wikipedia.org/wiki/大きな泥だんご"/>
+	/// </summary>
+	public readonly record struct BigBallOfMud(IBigBallOfMud Data) : IBigBallOfMud
+	{
+		public IBigBallOfMud Data             { get; } = Data;
+		public bool          HasSpaghettiCode => this.Data.HasSpaghettiCode;
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public God AsGod() => this.Data.AsGod();
+
+		public static implicit operator God         (BigBallOfMud bigBallOfMud) => bigBallOfMud.Data.AsGod();
+		public static implicit operator BigBallOfMud(God          god         ) => new(god);
+	}
 }

@@ -36,6 +36,14 @@ namespace ProgrammingLanguageTalking
 			get => _default.DisplayName.GetString();
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static God SetDefault<TBigBallOfMud>(TBigBallOfMud bigBallOfMud)
+			where TBigBallOfMud: IBigBallOfMud
+		{
+			ArgumentNullException.ThrowIfNull(bigBallOfMud);
+			return _default = bigBallOfMud.AsGod();
+		}
+
 		public static void PrayFor<T>(this God god, T? obj)
 			=> god.GetString(obj?.ToString() ?? string.Empty).Print();
 
