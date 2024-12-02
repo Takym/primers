@@ -1,0 +1,11 @@
+<!--
+ - プログラミング言語会話
+ - Copyright (C) 2024 Takym.
+ -
+ - distributed under the MIT License.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+	<ItemGroup>
+		<ProjectReference Include="../ProgrammingLanguageTalking.Core/ProgrammingLanguageTalking.Core.csproj"/>
+	</ItemGroup>
+</Project>
