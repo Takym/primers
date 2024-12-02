@@ -26,7 +26,7 @@ namespace ProgrammingLanguageTalking
 
 		protected private God()
 		{
-			this.DisplayName = $"参照型大御神 [#{Interlocked.Increment(ref _next_id):X16}]";
+			this.DisplayName = $"参照型大御神【{Interlocked.Increment(ref _next_id):X16}】";
 		}
 
 		public virtual SacredGreatValue<bool  > GetTrue   (            ) => new(this, true );
@@ -83,16 +83,16 @@ namespace ProgrammingLanguageTalking
 				}
 
 				tw.Write(
-					"{0}{1}[{2:yyyy/MM/dd HH:mm:ss.fffffffK}] ",
-					owner!.DisplayName?[7..],
-					god   .DisplayName?[7..],
+					"{0}{1}【{2:yyyy年MM月dd日HH時mm分ss.fffffff秒K}】 ",
+					owner!.DisplayName?[6..],
+					god   .DisplayName?[6..],
 					DateTime.Now
 				);
 
 				tw.WriteLine(
 					owner == god
-						? "The specified sacred great value is: {0}"
-						: "The specified  dirty evil  value is: {0}",
+						? "神聖偉大値：{0}"
+						: "汚物邪悪値：{0}",
 					value
 				);
 			}

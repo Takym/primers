@@ -18,7 +18,7 @@ namespace ProgrammingLanguageTalking
 			ArgumentNullException.ThrowIfNull(decision);
 
 			if (sender == this) {
-				throw new ArgumentException($"The specified sender is this agent. ({this})", nameof(sender));
+				throw new ArgumentException($"指定された送信者（sender 引数）は自分自身です。（{this}）", nameof(sender));
 			}
 
 			return this.OnMessageReceived(sender, context, decision);
@@ -32,7 +32,7 @@ namespace ProgrammingLanguageTalking
 		private static readonly NullAgent _inst    =  new();
 		public  static          NullAgent Instance => _inst;
 
-		public override string? DisplayName => "***";
+		public override string? DisplayName => "＊＊＊";
 
 		private NullAgent() { }
 

@@ -19,10 +19,10 @@ namespace ProgrammingLanguageTalking
 			string  tn = t.FullName ?? t.Name;
 
 			if (string.IsNullOrEmpty(tn)) {
-				tn = "ANY WORD OBJECT";
+				tn = "任意の型";
 			}
 
-			return string.IsNullOrEmpty(dn) ? tn : $"{dn} ({tn})";
+			return string.IsNullOrEmpty(dn) ? tn : $"{dn}（{tn}）";
 		}
 	}
 }

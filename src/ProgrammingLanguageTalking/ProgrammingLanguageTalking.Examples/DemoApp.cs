@@ -24,7 +24,7 @@ namespace ProgrammingLanguageTalking.Examples
 				$"{nameof(args)}[{i:D10}]: {args[i]}".Print();
 			}
 
-			var ctx = new RootContext("root");
+			var ctx = new RootContext("根幹");
 			var mca = new MyCustomAgent();
 
 			mca.MakeDecision(NullAgent.Instance, ctx, NullDecision.Instance)?.ToString().Print();

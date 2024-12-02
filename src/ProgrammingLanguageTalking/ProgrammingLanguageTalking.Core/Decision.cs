@@ -29,7 +29,7 @@ namespace ProgrammingLanguageTalking
 			: this(receiver.DisplayName, receiver, receiver.MakeDecision) { }
 
 		public override string ToString()
-			=> $"{base.ToString()} with the receiver {this.Receiver}";
+			=> $"{base.ToString()}〈受信者：{this.Receiver}〉";
 
 		protected private string BaseToString()
 			=> base.ToString();
