@@ -18,7 +18,8 @@ namespace ProgrammingLanguageTalking.Examples
 			"Hello, World".Print();
 			00000123456789.Print();
 
-			GodExtensions.Default.PrayFor(GodExtensions.GratefulText);
+			(GodExtensions.Default                    ).Pray();
+			(GodExtensions.Default = KamiSama.Instance).Pray();
 
 			for (int i = 0; i < args.Length; ++i) {
 				$"{nameof(args)}[{i:D10}]: {args[i]}".Print();

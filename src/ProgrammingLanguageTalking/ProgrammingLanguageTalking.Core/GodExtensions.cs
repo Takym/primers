@@ -40,6 +40,10 @@ namespace ProgrammingLanguageTalking
 			=> god.GetString(obj?.ToString() ?? string.Empty).Print();
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void Pray<T>(this T? obj)
+			=> _default.PrayFor(obj);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static SacredGreatValue<bool> GetTrue()
 			=> _default.GetTrue();
 
