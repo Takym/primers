@@ -87,5 +87,9 @@ namespace ProgrammingLanguageTalking
 
 		public static void Print(this string value)
 			=> value.GetString().Print();
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static bool IsTalkOrigin(this (Agent sender, Context context, Decision decision) sendMessageArg)
+			=> _default.DetectStartOfConversation(sendMessageArg.sender, sendMessageArg.context, sendMessageArg.decision);
 	}
 }

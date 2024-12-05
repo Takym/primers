@@ -25,10 +25,23 @@ namespace ProgrammingLanguageTalking.Examples
 				$"{nameof(args)}[{i:D10}]: {args[i]}".Print();
 			}
 
-			var ctx = new RootContext("根幹");
-			var mca = new MyCustomAgent();
+			var ctx  = new RootContext("根幹");
+			var mcaA = new MyCustomAgent("A");
+			var mcaB = new MyCustomAgent("B");
 
-			mca.MakeDecision(NullAgent.Instance, ctx, NullDecision.Instance)?.ToString().Print();
+			// 注意：Decision.SendMessage は OnMessageReceived の内部で使う事を想定。
+			// Agent.MakeDecision は外部で使う事を想定。
+
+			// TODO: 後でループに置き換える。
+			var d0 = mcaA.MakeDecision(NullAgent.Instance, ctx,       NullDecision.Instance);
+			var d1 = mcaB.MakeDecision(mcaA,               ctx, d0 ?? NullDecision.Instance);
+			var d2 = mcaA.MakeDecision(mcaB,               ctx, d1 ?? NullDecision.Instance);
+			var d3 = mcaB.MakeDecision(mcaA,               ctx, d2 ?? NullDecision.Instance);
+
+			d0?.ToString().Print();
+			d1?.ToString().Print();
+			d2?.ToString().Print();
+			d3?.ToString().Print();
 
 			/* 記事執筆用のメモ
 			・プロジェクト構成の説明

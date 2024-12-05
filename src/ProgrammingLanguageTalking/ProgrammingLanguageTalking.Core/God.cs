@@ -51,6 +51,16 @@ namespace ProgrammingLanguageTalking
 			value.LogCore(this, tw);
 		}
 
+		public virtual bool DetectStartOfConversation(Agent sender, Context context, Decision decision)
+		{
+			ArgumentNullException.ThrowIfNull(sender  );
+			ArgumentNullException.ThrowIfNull(context );
+			ArgumentNullException.ThrowIfNull(decision);
+
+			return sender is NullAgent && context is RootContext && decision is NullDecision
+				&& context.Decisions.IsEmpty;
+		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public sealed override string ToString() => base.ToString();
 
