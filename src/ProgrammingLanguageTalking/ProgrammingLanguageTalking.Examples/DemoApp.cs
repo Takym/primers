@@ -29,6 +29,13 @@ namespace ProgrammingLanguageTalking.Examples
 			var mca = new MyCustomAgent();
 
 			mca.MakeDecision(NullAgent.Instance, ctx, NullDecision.Instance)?.ToString().Print();
+
+			/* 記事執筆用のメモ
+			・プロジェクト構成の説明
+			・あくまで人間同士の会話を想定している。
+			・コンピュータとの会話でも翻訳システムでもない。
+			・コードが日本語の文章に翻訳される訳ではない。
+			*/
 		}
 
 		public static void Start()
