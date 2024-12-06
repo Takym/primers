@@ -37,11 +37,15 @@ namespace ProgrammingLanguageTalking.Examples
 			var d1 = mcaB.MakeDecision(mcaA,               ctx, d0 ?? NullDecision.Instance);
 			var d2 = mcaA.MakeDecision(mcaB,               ctx, d1 ?? NullDecision.Instance);
 			var d3 = mcaB.MakeDecision(mcaA,               ctx, d2 ?? NullDecision.Instance);
+			var d4 = mcaB.MakeDecision(mcaA,               ctx, d3 ?? NullDecision.Instance);
+			var d5 = mcaB.MakeDecision(mcaA,               ctx, d4 ?? NullDecision.Instance);
 
 			d0?.ToString().Print();
 			d1?.ToString().Print();
 			d2?.ToString().Print();
 			d3?.ToString().Print();
+			d4?.ToString().Print();
+			d5?.ToString().Print();
 
 			/* 記事執筆用のメモ
 			・プロジェクト構成の説明
