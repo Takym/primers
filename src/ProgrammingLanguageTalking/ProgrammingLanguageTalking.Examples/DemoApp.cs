@@ -15,8 +15,8 @@ namespace ProgrammingLanguageTalking.Examples
 	{
 		public static void Start(string[] args)
 		{
-			"Hello, World".Print();
-			00000123456789.Print();
+			"Hello, World!!".Print();
+			0000000123456789.Print();
 
 			(GodExtensions.Default                    ).Pray();
 			(GodExtensions.Default = KamiSama.Instance).Pray();
@@ -32,20 +32,13 @@ namespace ProgrammingLanguageTalking.Examples
 			// 注意：Decision.SendMessage は OnMessageReceived の内部で使う事を想定。
 			// Agent.MakeDecision は外部で使う事を想定。
 
-			// TODO: 後でループに置き換える。
-			var d0 = mcaA.MakeDecision(NullAgent.Instance, ctx,       NullDecision.Instance);
-			var d1 = mcaB.MakeDecision(mcaA,               ctx, d0 ?? NullDecision.Instance);
-			var d2 = mcaA.MakeDecision(mcaB,               ctx, d1 ?? NullDecision.Instance);
-			var d3 = mcaB.MakeDecision(mcaA,               ctx, d2 ?? NullDecision.Instance);
-			var d4 = mcaA.MakeDecision(mcaB,               ctx, d3 ?? NullDecision.Instance);
-			var d5 = mcaB.MakeDecision(mcaA,               ctx, d4 ?? NullDecision.Instance);
-
-			d0?.ToString().Print();
-			d1?.ToString().Print();
-			d2?.ToString().Print();
-			d3?.ToString().Print();
-			d4?.ToString().Print();
-			d5?.ToString().Print();
+			// TODO: ループに書き換えた事を記事に書く。
+			var dec = mcaA.MakeDecision(NullAgent.Instance, ctx, NullDecision.Instance);
+			while (dec is not null) { // TODO: null が来たら会話の終わり。前回の記事だと非効率な null 検証があった。NullDecision は終わりではない。
+				dec.Pray(); // TODO: 神クラス独自の書き方なので、記事内では Console.WriteLine(dec.ToString()); と書く。
+				dec = mcaB.MakeDecision(mcaA, ctx, dec);
+				(mcaA, mcaB) = (mcaB, mcaA);
+			}
 		}
 
 		public static void Start()
