@@ -36,10 +36,15 @@ namespace ProgrammingLanguageTalking.Examples
 			}
 
 			if (decision is AskNameDecision) {
-				return new ReplyNameDecision(this.DisplayName, this, NullAgent.Instance.MakeDecision);
+				return new ReplyNameDecision(this.DisplayName, this, decision.SendMessage);
 			}
 
 			if (decision is ReplyNameDecision) {
+				if (context[nameof(ReplyNameDecision)] is null) {
+					context[nameof(ReplyNameDecision)] = decision;
+					return decision.SendMessage(this, context, new AskNameDecision(this, this.MakeDecision));
+				}
+
 				return new GoodByeDecision(this, NullAgent.Instance.MakeDecision);
 			}
 
@@ -76,7 +81,7 @@ namespace ProgrammingLanguageTalking.Examples
 			: Decision("名前質問", receiver, sendMessage);
 
 		public sealed class ReplyNameDecision(string? agentName, MyCustomAgent receiver, SendMessageFunc sendMessage)
-			: Decision("名前回答", receiver, sendMessage)
+			: Decision(string.IsNullOrEmpty(agentName) ? "名前回答" : $"名前回答「{agentName}」", receiver, sendMessage)
 		{
 			public string? AgentName => agentName;
 		}
