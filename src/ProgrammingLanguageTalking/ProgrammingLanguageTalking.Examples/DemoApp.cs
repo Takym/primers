@@ -39,6 +39,8 @@ namespace ProgrammingLanguageTalking.Examples
 				dec = mcaB.MakeDecision(mcaA, ctx, dec);
 				(mcaA, mcaB) = (mcaB, mcaA);
 			}
+
+			// TODO: 練習問題の模範解答として https://github.com/Takym/primers/commits/b901989df23f25df7325dac96ec6a580482bf13e を提示する。
 		}
 
 		public static void Start()
