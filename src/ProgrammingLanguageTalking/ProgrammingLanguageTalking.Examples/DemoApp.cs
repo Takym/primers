@@ -32,15 +32,12 @@ namespace ProgrammingLanguageTalking.Examples
 			// 注意：Decision.SendMessage は OnMessageReceived の内部で使う事を想定。
 			// Agent.MakeDecision は外部で使う事を想定。
 
-			// TODO: ループに書き換えた事を記事に書く。
 			var dec = mcaA.MakeDecision(NullAgent.Instance, ctx, NullDecision.Instance);
-			while (dec is not null) { // TODO: null が来たら会話の終わり。前回の記事だと非効率な null 検証があった。NullDecision は終わりではない。
-				dec.Pray(); // TODO: 神クラス独自の書き方なので、記事内では Console.WriteLine(dec.ToString()); と書く。
+			while (dec is not null) {
+				dec.Pray();
 				dec = mcaB.MakeDecision(mcaA, ctx, dec);
 				(mcaA, mcaB) = (mcaB, mcaA);
 			}
-
-			// TODO: 練習問題の模範解答として https://github.com/Takym/primers/commit/b901989df23f25df7325dac96ec6a580482bf13e を提示する。
 		}
 
 		public static void Start()

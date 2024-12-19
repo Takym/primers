@@ -9,6 +9,8 @@ namespace ProgrammingLanguageTalking.Examples
 {
 	public class MyCustomAgent : Agent
 	{
+		private volatile ReplyNameDecision? _other_name;
+
 		public override string? DisplayName { get; }
 
 		public MyCustomAgent(string? displayName)
@@ -18,10 +20,6 @@ namespace ProgrammingLanguageTalking.Examples
 
 		protected override Decision? OnMessageReceived(Agent sender, Context context, Decision decision)
 		{
-			if (decision is GoodByeDecision) {
-				return null;
-			}
-
 			if ((sender, context, decision).IsTalkOrigin()) {
 				goto HelloWorldDecision;
 			}
@@ -32,26 +30,44 @@ namespace ProgrammingLanguageTalking.Examples
 					goto HelloWorldDecision;
 				}
 
-				return decision.SendMessage(this, context, new AskNameDecision(this, this.MakeDecision));
+				goto AskNameDecision;
 			}
 
 			if (decision is AskNameDecision) {
-				return new ReplyNameDecision(this.DisplayName, this, decision.SendMessage);
+				goto ReplyNameDecision;
 			}
 
 			if (decision is ReplyNameDecision) {
 				if (context[nameof(ReplyNameDecision)] is null) {
 					context[nameof(ReplyNameDecision)] = decision;
-					return decision.SendMessage(this, context, new AskNameDecision(this, this.MakeDecision));
+					goto AskNameDecision;
 				}
 
-				return new GoodByeDecision(this, NullAgent.Instance.MakeDecision);
+				goto GoodByeDecision;
+			}
+
+			if (decision is GoodByeDecision &&
+				context[nameof(GoodByeDecision)] is null) {
+				context[nameof(GoodByeDecision)] = decision;
+				goto GoodByeDecision;
 			}
 
 			return null;
 
 		HelloWorldDecision:
 			return new HelloWorldDecision(this, this.MakeDecision);
+
+		AskNameDecision:
+			return decision.SendMessage(this, context, new AskNameDecision(this, this.MakeDecision)) switch {
+				ReplyNameDecision otherName => _other_name = otherName,
+				_                           => null
+			};
+
+		ReplyNameDecision:
+			return new ReplyNameDecision(this.DisplayName, this, decision.SendMessage);
+
+		GoodByeDecision:
+			return new GoodByeDecision(this, NullAgent.Instance.MakeDecision);
 		}
 
 		public abstract class GreetDecision : Decision
