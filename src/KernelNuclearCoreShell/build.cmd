@@ -4,6 +4,6 @@
 
 pushd "%~dp0"
 
-nasm disk.asm -o disk.vfd -l disk.lst -f bin
+call boot\build.cmd
 
 popd

@@ -1,4 +1,4 @@
-; Kernel Nuclear Core and Shell - Floppy Disk
+; Kernel Nuclear Core and Shell/核核核殻 - Floppy Disk
 ; Copyright (C) 2026 Takym.
 
 %INCLUDE "mbr.asm"

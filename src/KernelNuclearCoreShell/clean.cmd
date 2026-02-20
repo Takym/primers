@@ -4,8 +4,6 @@
 
 pushd "%~dp0"
 
-del *.vfd
-del *.bin
-del *.lst
+call boot\clean.cmd
 
 popd

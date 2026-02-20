@@ -1,7 +1,13 @@
-; Kernel Nuclear Core and Shell - Master Boot Record
+; Kernel Nuclear Core and Shell/核核核殻 - Master Boot Record
 ; Copyright (C) 2026 Takym.
 
-ADDR_MBR EQU 0x7C00
+ADDR_MBR         EQU 0x7C00 ; MBR の番地
+BYTES_PER_SECT   EQU 0x0200 ; 1 セクタ当たりのバイト数は 512
+IDX_DRIVE_NUM    EQU     -1 ; ドライブ番号
+IDX_CYLN_CT      EQU     -3 ; シリンダ数
+IDX_HEAD_CT      EQU     -4 ; ヘッド数
+IDX_SECT_CT      EQU     -5 ; セクタ数
+ATTEMPTION_LIMIT EQU     10 ; 試行回数上限
 
 MBR:
 	BITS	16
@@ -9,10 +15,139 @@ MBR:
 	JMP		.IPL
 	NOP
 
-.BPB:
-.IPL:
-.PT:
+.BPB: ; BIOS Parameter Block (https://elm-chan.org/docs/fat.html)
+	; 取り敢えず空に設定する。
+	TIMES	0x005A - ($ - $$) DB 0x00
+
+.INVOKE_PL2:
+	JMP		PL2
+	NOP
+
+.MSG:
+.MSG_FAIL DB "DISK SYSTEM ERROR", 0x0D, 0x0A, 0x00
+
+.IPL: ; Initial Program Loader (https://takym.github.io/blog/general/2025/08/01/bootloader.html)
+	CLI                                          ; 割り込み禁止
+	XOR		AX, AX                               ; AX = 0
+	MOV		ES, AX                               ; ES = 0
+	MOV		SS, AX                               ; SS = 0
+	MOV		DS, AX                               ; DS = 0
+	MOV		SP, ADDR_MBR                         ; スタック位置を ADDR_MBR に再設定
+	STI                                          ; 割り込み許可
+	CLD                                          ; アドレスの増減方向の設定（常に加算モード）
+	MOV		BP, SP                               ; BP = SP
+	SUB		SP, -IDX_SECT_CT                     ; ドライブ情報用のスタックを確保（処理的には加算命令でも良いが、減算に確保、加算に破棄の意図を持たせている）
+	MOV		[BP + IDX_DRIVE_NUM], DL             ; ドライブ番号保存
+	MOV		DI, AX                               ; DI = 0（不必要？）
+	MOV		AH, 0x08                             ; ドライブ情報を取得する
+	INT		0x13                                 ; BIOS 関数呼び出し
+	JC		.FAIL                                ; 失敗した時
+	MOV		AL, CL                               ; セクタ数取得処理
+	AND		AL, 0x3F                             ; セクタ数取得処理
+	SHR		CL, 6                                ; シリンダ数取得処理
+	ROR		CX, 8                                ; シリンダ数取得処理
+	MOV		[BP + IDX_CYLN_CT], CX               ; シリンダ数取得処理
+	MOV		[BP + IDX_HEAD_CT], DH               ; ヘッド数取得処理
+	MOV		[BP + IDX_SECT_CT], AL               ; セクタ数取得処理
+	MOV		AX, (ADDR_MBR + BYTES_PER_SECT) >> 4 ; AX に読み込み先のセグメントを計算
+	MOV		ES, AX                               ; ES に読み込み先のセグメントを設定
+	MOV		CX, 0x02                             ; 二番目のセクタ＆最初のシリンダ
+	MOV		DH, 0x00                             ; 最初のヘッド
+	CALL	.READ_DISK                           ; ディスク読み込み
+	MOV		AX, BYTES_PER_SECT >> 4              ; AX は 1 セクタ当たりのバイト数
+	MOV		BH, 0                                ; BX の上位バイトはゼロ
+	MOV		BL, [BP + IDX_SECT_CT]               ; BX の下位バイトはセクタ数
+	MUL		BX                                   ; DX:AX = AX * BX
+	CMP		DX, 0                                ; DX と 0 を比較
+	JNE		.FAIL                                ; 巨大なアドレスはエラー
+	MOV		BX, AX                               ; 1 ループ毎にセグメントに加算する値を BX にコピー
+	ADD		AX, ADDR_MBR >> 4                    ; AX に読み込み先のセグメントを計算
+	MOV		ES, AX                               ; ES に読み込み先のセグメントを設定
+	MOV		CX, 1                                ; 二番目のシリンダ
+	MOV		DH, 1                                ; 二番目のヘッド
+	MOV		SI, [BP + IDX_CYLN_CT]               ; シリンダ数を SI にキャッシュ
+	MOV		DL, [BP + IDX_HEAD_CT]               ; ヘッド数を DL にキャッシュ
+.READ_NEXT:
+	CMP		DH, DL                               ; ヘッド番号の比較
+	JB		.CALL_READ_DISK                      ; 最大ヘッド数未満なら読み込み処理開始
+	MOV		DH, 0                                ; 最初のヘッドに戻る
+	INC		CX                                   ; シリンダ番号加算
+	CMP		CX, SI                               ; シリンダ番号の比較
+	JAE		.INVOKE_PL2                          ; 二次ローダー起動
+.CALL_READ_DISK:
+	ROR		CX, 8                                ; シリンダ番号設定位置を調整
+	SHL		CL, 6                                ; シリンダ番号を上位へ移動
+	AND		CL, 0xC1                             ; 最初のセクタ
+	CALL	.READ_DISK                           ; ディスク読み込み
+	SHR		CL, 6                                ; セクタ番号を除去し、シリンダ番号を下位へ移動
+	ROR		CX, 8                                ; シリンダ番号設定位置を調整
+	INC		DH                                   ; ヘッダ番号加算
+	ADD		AX, BX                               ; AX に読み込み先のセグメントを計算
+	MOV		ES, AX                               ; ES に読み込み先のセグメントを設定
+	JMP		.READ_NEXT                           ; 次の読み込みへ移行する
+
+.FAIL:
+	MOV		SI, .MSG_FAIL                        ; エラーメッセージ取得
+	CALL	.PRINT                               ; エラーメッセージ表示
+.END:
+	HLT                                          ; CPU 停止
+	JMP		.END                                 ; 無限ループ
+
+.PRINT:
+	PUSH	AX                                   ; AX の値をスタックへ退避
+	PUSH	BX                                   ; BX の値をスタックへ退避
+	MOV		AH, 0x0E                             ; 文字を一つだけ表示する
+	XOR		BX, BX                               ; 文字色とページ番号に 0 を指定
+.PRINT_PUT:
+	LODSB                                        ; 次の文字を読み込む
+	CMP		AL, 0x00                             ; NULL 文字判定
+	JE		.PRINT_END                           ; 終端を検出したら終了
+	INT		0x10                                 ; BIOS 関数呼び出し
+	JMP		.PRINT_PUT                           ; 次の文字へ
+.PRINT_END:
+	POP		BX                                   ; BX の値をスタックから復元
+	POP		AX                                   ; AX の値をスタックから復元
+	RET                                          ; 制御を呼び出し元へ返す
+
+.READ_DISK:
+	PUSH	AX                                   ; AX の値をスタックへ退避
+	PUSH	BX                                   ; BX の値をスタックへ退避
+	PUSH	DX                                   ; DX の値をスタックへ退避
+	PUSH	SI                                   ; SI の値をスタックへ退避
+	PUSH	BP                                   ; BP の値をスタックへ退避
+	MOV		BP, ADDR_MBR                         ; BP = ADDR_MBR
+	MOV		AL, [BP + IDX_SECT_CT]               ; セクタ数取得
+	MOV		BH, CL                               ; セクタ番号を BH にコピー
+	AND		BH, 0x3F                             ; 上位 2 ビットにあるシリンダ番号を除去
+	DEC		BH                                   ; セクタ番号は 1 始まりなので減算して調整
+	SUB		AL, BH                               ; 読み込むセクタ数からセクタ番号を引く
+	XOR		BX, BX                               ; BX に読み込み先のアドレスを設定
+	XOR		SI, SI                               ; 試行回数はゼロ
+.READ_DISK_RETRY:
+	MOV		AH, 0x02                             ; ディスクからデータを読み込む
+	MOV		DL, [BP + IDX_DRIVE_NUM]             ; ドライブ番号再設定
+	INT		0x13                                 ; BIOS 関数呼び出し
+	JNC		.READ_DISK_END                       ; 成功したら終了
+	INC		SI                                   ; 試行回数加算
+	CMP		SI, ATTEMPTION_LIMIT                 ; 試行回数上限と比較
+	JAE		.FAIL                                ; 失敗した時
+	MOV		AH, 0x00                             ; ドライブ再設定
+	MOV		DL, [BP + IDX_DRIVE_NUM]             ; ドライブ番号再設定
+	INT		0x13                                 ; BIOS 関数呼び出し
+	JMP		.READ_DISK_RETRY                     ; 再試行
+.READ_DISK_END:
+	POP		BP                                   ; BP の値をスタックから復元
+	POP		SI                                   ; SI の値をスタックから復元
+	POP		DX                                   ; DX の値をスタックから復元
+	POP		BX                                   ; BX の値をスタックから復元
+	POP		AX                                   ; AX の値をスタックから復元
+	RET                                          ; 制御を呼び出し元へ返す
+
+	TIMES	0x01BE - ($ - $$) DB 0x00
+
+.PT: ; Partition Table (https://wiki.osdev.org/Partition_Table)
+	; 取り敢えず空に設定する。
+	TIMES	0x01FE - ($ - $$) DB 0x00
 
 .BOOT_SIGN:
-	TIMES	0x01FE - ($ - $$) DB 0x00
 	DW		0xAA55
