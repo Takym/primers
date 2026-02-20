@@ -67,7 +67,7 @@ MBR:
 	ADD		AX, ADDR_MBR >> 4                    ; AX に読み込み先のセグメントを計算
 	MOV		ES, AX                               ; ES に読み込み先のセグメントを設定
 	MOV		CX, 0                                ; 最初のシリンダ
-	MOV		DH, 1                                ; 二番目のヘッド
+	MOV		DH, 1                                ; ヘッド番号を 1 に設定
 ;	MOV		SI, [BP + IDX_CYLN_CT]               ; シリンダ数を SI にキャッシュ
 	MOV		SI, 1                                ; SI に 2 以上を設定すると必ず失敗する
 	MOV		DL, [BP + IDX_HEAD_CT]               ; ヘッド数を DL にキャッシュ
