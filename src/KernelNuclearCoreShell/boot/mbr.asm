@@ -24,7 +24,8 @@ MBR:
 	NOP
 
 .MSG:
-.MSG_FAIL DB "DISK SYSTEM ERROR", 0x0D, 0x0A, 0x00
+.MSG_FAIL     DB "DISK SYSTEM ERROR:"
+.MSG_FAIL_NUM DB "0", 0x0D, 0x0A, 0x00
 
 .IPL: ; Initial Program Loader (https://takym.github.io/blog/general/2025/08/01/bootloader.html)
 	CLI                                          ; 割り込み禁止
@@ -41,15 +42,16 @@ MBR:
 	MOV		DI, AX                               ; DI = 0（不必要？）
 	MOV		AH, 0x08                             ; ドライブ情報を取得する
 	INT		0x13                                 ; BIOS 関数呼び出し
-	JC		.FAIL                                ; 失敗した時
+	JC		.FAIL1                               ; 失敗した時
 	MOV		AL, CL                               ; セクタ数取得処理
 	AND		AL, 0x3F                             ; セクタ数取得処理
 	SHR		CL, 6                                ; シリンダ数取得処理
 	ROR		CX, 8                                ; シリンダ数取得処理
 	INC		CX                                   ; シリンダ数取得処理
-	MOV		[BP + IDX_CYLN_CT], CX               ; シリンダ数取得処理
-	MOV		[BP + IDX_HEAD_CT], DH               ; ヘッド数取得処理
-	MOV		[BP + IDX_SECT_CT], AL               ; セクタ数取得処理
+	INC		DH                                   ; ヘッド数取得処理
+	MOV		[BP + IDX_CYLN_CT], CX               ; シリンダ数保存
+	MOV		[BP + IDX_HEAD_CT], DH               ; ヘッド数保存
+	MOV		[BP + IDX_SECT_CT], AL               ; セクタ数保存
 	MOV		AX, (ADDR_MBR + BYTES_PER_SECT) >> 4 ; AX に読み込み先のセグメントを計算
 	MOV		ES, AX                               ; ES に読み込み先のセグメントを設定
 	MOV		CX, 0x02                             ; 二番目のセクタ＆最初のシリンダ
@@ -60,13 +62,14 @@ MBR:
 	MOV		BL, [BP + IDX_SECT_CT]               ; BX の下位バイトはセクタ数
 	MUL		BX                                   ; DX:AX = AX * BX
 	CMP		DX, 0                                ; DX と 0 を比較
-	JNE		.FAIL                                ; 巨大なアドレスはエラー
-	MOV		BX, AX                               ; 1 ループ毎にセグメントに加算する値を BX にコピー
+	JNE		.FAIL2                               ; 巨大なアドレスはエラー
+	MOV		BX, AX                               ; 1 ループ毎にセグメントに加算する値を BX にコピー（二番目以降のシリンダを読み込めないのは恐らくこの行が原因）
 	ADD		AX, ADDR_MBR >> 4                    ; AX に読み込み先のセグメントを計算
 	MOV		ES, AX                               ; ES に読み込み先のセグメントを設定
-	MOV		CX, 1                                ; 二番目のシリンダ
+	MOV		CX, 0                                ; 最初のシリンダ
 	MOV		DH, 1                                ; 二番目のヘッド
-	MOV		SI, [BP + IDX_CYLN_CT]               ; シリンダ数を SI にキャッシュ
+;	MOV		SI, [BP + IDX_CYLN_CT]               ; シリンダ数を SI にキャッシュ
+	MOV		SI, 1                                ; SI に 2 以上を設定すると必ず失敗する
 	MOV		DL, [BP + IDX_HEAD_CT]               ; ヘッド数を DL にキャッシュ
 .READ_NEXT:
 	CMP		DH, DL                               ; ヘッド番号の比較
@@ -76,18 +79,27 @@ MBR:
 	CMP		CX, SI                               ; シリンダ番号の比較
 	JAE		.INVOKE_PL2                          ; 二次ローダー起動
 .CALL_READ_DISK:
-	ROR		CX, 8                                ; シリンダ番号設定位置を調整
+	ROL		CX, 8                                ; シリンダ番号設定位置を調整
 	SHL		CL, 6                                ; シリンダ番号を上位へ移動
-	AND		CL, 0xC1                             ; 最初のセクタ
+	AND		CL, 0xC0                             ; 最初のセクタ（セクタ番号の部分を 0 に初期化）
+	OR		CL, 0x01                             ; 最初のセクタ（セクタ番号を 1 に再設定）
 	CALL	.READ_DISK                           ; ディスク読み込み
 	SHR		CL, 6                                ; セクタ番号を除去し、シリンダ番号を下位へ移動
 	ROR		CX, 8                                ; シリンダ番号設定位置を調整
 	INC		DH                                   ; ヘッダ番号加算
-	ADD		AX, BX                               ; AX に読み込み先のセグメントを計算
+	ADD		AX, BX                               ; AX に読み込み先のセグメントを計算（二番目以降のシリンダを読み込めないのは恐らくこの行が原因）
 	MOV		ES, AX                               ; ES に読み込み先のセグメントを設定
 	JMP		.READ_NEXT                           ; 次の読み込みへ移行する
 
-.FAIL:
+.FAIL1:
+	MOV		[.MSG_FAIL_NUM], "1"                 ; エラー番号を 1 に設定
+	JMP		.FAIL_CORE                           ; エラーメッセージ表示処理へ
+.FAIL2:
+	MOV		[.MSG_FAIL_NUM], "2"                 ; エラー番号を 2 に設定
+	JMP		.FAIL_CORE                           ; エラーメッセージ表示処理へ
+.FAIL3:
+	MOV		[.MSG_FAIL_NUM], "3"                 ; エラー番号を 3 に設定
+.FAIL_CORE:
 	MOV		SI, .MSG_FAIL                        ; エラーメッセージ取得
 	CALL	.PRINT                               ; エラーメッセージ表示
 .END:
@@ -131,7 +143,7 @@ MBR:
 	JNC		.READ_DISK_END                       ; 成功したら終了
 	INC		SI                                   ; 試行回数加算
 	CMP		SI, ATTEMPTION_LIMIT                 ; 試行回数上限と比較
-	JAE		.FAIL                                ; 失敗した時
+	JAE		.FAIL3                               ; 失敗した時
 	MOV		AH, 0x00                             ; ドライブ再設定
 	MOV		DL, [BP + IDX_DRIVE_NUM]             ; ドライブ番号再設定
 	INT		0x13                                 ; BIOS 関数呼び出し
