@@ -46,6 +46,7 @@ MBR:
 	AND		AL, 0x3F                             ; セクタ数取得処理
 	SHR		CL, 6                                ; シリンダ数取得処理
 	ROR		CX, 8                                ; シリンダ数取得処理
+	INC		CX                                   ; シリンダ数取得処理
 	MOV		[BP + IDX_CYLN_CT], CX               ; シリンダ数取得処理
 	MOV		[BP + IDX_HEAD_CT], DH               ; ヘッド数取得処理
 	MOV		[BP + IDX_SECT_CT], AL               ; セクタ数取得処理
