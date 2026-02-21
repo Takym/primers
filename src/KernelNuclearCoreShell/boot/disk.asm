@@ -1,7 +1,8 @@
 ; Kernel Nuclear Core and Shell/核核核殻 - Floppy Disk
 ; Copyright (C) 2026 Takym.
 
-%INCLUDE "mbr.asm"
+;%INCLUDE "mbr.asm"
+%INCLUDE "mbr_debug.asm"
 ;%INCLUDE "pl2.asm"
 %INCLUDE "pl2_playground.asm"
 

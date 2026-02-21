@@ -146,11 +146,16 @@ MBR:
 	JNC		.READ_DISK_END                       ; 成功したら終了
 	INC		SI                                   ; 試行回数加算
 	CMP		SI, ATTEMPTION_LIMIT                 ; 試行回数上限と比較
-	JAE		.FAIL3                               ; 失敗した時
+;	JAE		.FAIL3                               ; 失敗した時
+	JAE		.READ_DISK_SKIP_ERROR                ; エラーを無視する
 	MOV		AH, 0x00                             ; ドライブ再設定
 	MOV		DL, [BP + IDX_DRIVE_NUM]             ; ドライブ番号再設定
 	INT		0x13                                 ; BIOS 関数呼び出し
 	JMP		.READ_DISK_RETRY                     ; 再試行
+.READ_DISK_SKIP_ERROR:
+	MOV		[.MSG_FAIL_NUM], "3"                 ; エラー番号を 3 に設定
+	MOV		SI, .MSG_FAIL                        ; エラーメッセージ取得
+	CALL	.PRINT                               ; エラーメッセージ表示
 .READ_DISK_END:
 	POP		BP                                   ; BP の値をスタックから復元
 	POP		SI                                   ; SI の値をスタックから復元
@@ -208,7 +213,7 @@ MBR:
 ; DEBUG CODE ENDED
 
 
-	;TIMES	0x01BE - ($ - $$) DB 0x00
+;	TIMES	0x01BE - ($ - $$) DB 0x00
 
 .PT: ; Partition Table (https://wiki.osdev.org/Partition_Table)
 	; 取り敢えず空に設定する。
