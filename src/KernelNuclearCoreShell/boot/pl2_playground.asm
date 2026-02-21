@@ -1,6 +1,11 @@
 ; Kernel Nuclear Core and Shell/核核核殻 - Secondary Program Loader (Playground)
 ; Copyright (C) 2026 Takym.
 
+
+TEST_PAD:
+;	TIMES	0x4717 - ($ - $$) DB 0x00 ; ここまでは正常に読み込まれる
+;	TIMES	0x6B17 - ($ - $$) DB 0x00 ; エラーを無視した場合に動作確認
+
 PL2:
 	BITS	16
 

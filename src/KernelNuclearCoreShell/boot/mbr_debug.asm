@@ -69,7 +69,7 @@ MBR:
 	MOV		CX, 0                                ; 最初のシリンダ
 	MOV		DH, 1                                ; ヘッド番号を 1 に設定
 ;	MOV		SI, [BP + IDX_CYLN_CT]               ; シリンダ数を SI にキャッシュ
-	MOV		SI, 1                                ; SI に 2 以上を設定すると必ず失敗する
+	MOV		SI, 2                                ; SI に 2 以上を設定すると必ず失敗する
 	MOV		DL, [BP + IDX_HEAD_CT]               ; ヘッド数を DL にキャッシュ
 .READ_NEXT:
 	CMP		DH, DL                               ; ヘッド番号の比較
@@ -87,8 +87,11 @@ MBR:
 	SHR		CL, 6                                ; セクタ番号を除去し、シリンダ番号を下位へ移動
 	ROR		CX, 8                                ; シリンダ番号設定位置を調整
 	INC		DH                                   ; ヘッド番号加算
+	CALL	.PRINT_AX                            ; デバッグ用の表示
 	ADD		AX, BX                               ; AX に読み込み先のセグメントを計算
 	MOV		ES, AX                               ; ES に読み込み先のセグメントを設定
+	CALL	.PRINT_AX                            ; デバッグ用の表示
+	CALL	.PRINT_LN                            ; デバッグ用の表示
 	JMP		.READ_NEXT                           ; 次の読み込みへ移行する
 
 .FAIL1:
@@ -156,7 +159,56 @@ MBR:
 	POP		AX                                   ; AX の値をスタックから復元
 	RET                                          ; 制御を呼び出し元へ返す
 
-	TIMES	0x01BE - ($ - $$) DB 0x00
+
+; DEBUG CODE BEGIN
+
+.PRINT_AX:
+	ROL		AX, 8
+	CALL	.PRINT_NUM
+	ROR		AX, 8
+	CALL	.PRINT_NUM
+	CALL	.PRINT_LN
+	RET
+
+.PRINT_NUM:
+	PUSH	CX                  ; CX の値をスタックへ退避
+	PUSH	SI                  ; SI の値をスタックへ退避
+	MOV		CL, AL              ; 数値取得
+	SHR		CL, 4               ; 上位の数値を取得
+	OR		CL, 0x30            ; 文字コードに変換
+	CMP		CL, 0x3A            ; もし CL < 0x3A ならば
+	JB		.PRINT_NUM_SKIP1    ; 次の処理を飛ばす
+	ADD		CL, 7               ; CL += 7
+.PRINT_NUM_SKIP1:
+	MOV		[.MSG_BYTE + 0], CL ; 上位の数字を設定
+	MOV		CL, AL              ; 数値取得
+	AND		CL, 0x0F            ; 下位の数値を取得
+	OR		CL, 0x30            ; 文字コードに変換
+	CMP		CL, 0x3A            ; もし CL < 0x3A ならば
+	JB		.PRINT_NUM_SKIP2    ; 次の処理を飛ばす
+	ADD		CL, 7               ; CL += 7
+.PRINT_NUM_SKIP2:
+	MOV		[.MSG_BYTE + 1], CL ; 下位の数字を設定
+	MOV		SI, .MSG_BYTE       ; 文字列取得
+	CALL	.PRINT              ; 文字列表示
+	POP		SI                  ; SI の値をスタックから復元
+	POP		CX                  ; CX の値をスタックから復元
+	RET                         ; 制御を呼び出し元へ返す
+
+.PRINT_LN:
+	PUSH	SI            ; SI の値をスタックへ退避
+	MOV		SI, .MSG_CRLF ; 改行文字列取得
+	CALL	.PRINT        ; 文字列表示
+	POP		SI            ; SI の値をスタックから復元
+	RET                   ; 制御を呼び出し元へ返す
+
+.MSG_BYTE      DB 0x7F, 0x7F, 0x00
+.MSG_CRLF      DB 0x0D, 0x0A, 0x00
+
+; DEBUG CODE ENDED
+
+
+	;TIMES	0x01BE - ($ - $$) DB 0x00
 
 .PT: ; Partition Table (https://wiki.osdev.org/Partition_Table)
 	; 取り敢えず空に設定する。
