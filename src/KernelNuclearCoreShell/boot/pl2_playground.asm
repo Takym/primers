@@ -5,6 +5,8 @@
 TEST_PAD:
 ;	TIMES	0x4717 - ($ - $$) DB 0x00 ; ここまでは正常に読み込まれる
 ;	TIMES	0x6B17 - ($ - $$) DB 0x00 ; エラーを無視した場合に動作確認
+	TIMES	0x6C00 - ($ - $$) DB 0x00
+;	TIMES	0x8400 - ($ - $$) DB 0x00
 
 PL2:
 	BITS	16
@@ -87,3 +89,12 @@ PL2:
 .MSG_CYLN_CT   DB "CYLN : 0x", 0x00
 .MSG_HEAD_CT   DB "HEAD : 0x__", 0x00
 .MSG_SECT_CT   DB "SECT : 0x__", 0x00
+
+
+; QEMU モニターで「x/4c 0x10000」と入力する。
+TIMES 0x8400 - ($ - $$) DB 0x00
+DB "wow! success!", 0x00
+
+; QEMU モニターで「x/4c 0x13000」と入力する。
+TIMES 0xB400 - ($ - $$) DB 0x00
+DB "nice job. あ", 0x00

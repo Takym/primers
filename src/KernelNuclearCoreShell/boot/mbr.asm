@@ -66,7 +66,7 @@ MBR:
 	MUL		BX                                   ; DX:AX = AX * BX
 	CMP		DX, 0                                ; DX と 0 を比較
 	JNE		.FAIL2                               ; 巨大なアドレスはエラー
-	MOV		BX, AX                               ; 1 ループ毎にセグメントに加算する値を BX にコピー
+	MOV		BX, AX                               ; 1 ループ毎にセグメントに加算する値を BX に複写
 	ADD		AX, ADDR_MBR >> 4                    ; AX に読み込み先のセグメントを計算
 	MOV		ES, AX                               ; ES に読み込み先のセグメントを設定
 	MOV		CX, 0                                ; 最初のシリンダ
@@ -76,22 +76,69 @@ MBR:
 	MOV		DL, [BP + IDX_HEAD_CT]               ; ヘッド数を DL にキャッシュ
 .READ_NEXT:
 	CMP		DH, DL                               ; ヘッド番号の比較
-	JB		.CALL_READ_DISK                      ; 最大ヘッド数未満なら読み込み処理開始
+	JB		.ADJUST_64KB_BOUND                   ; 最大ヘッド数未満なら読み込み処理開始
 	MOV		DH, 0                                ; 最初のヘッドに戻る
 	INC		CX                                   ; シリンダ番号加算
 	CMP		CX, SI                               ; シリンダ番号の比較
 	JAE		.INVOKE_PL2                          ; 二次ローダー起動
-.CALL_READ_DISK:
+.ADJUST_64KB_BOUND:
+	ADD		AX, BX                               ; AX に次の読み込み先のセグメントを計算
+	PUSH	BX                                   ; BX の値をスタックへ退避
+	PUSH	AX                                   ; AX の値をスタックへ退避
+	MOV		BX, ES                               ; ES の値を BX に複写
+	AND		BH, 0xF0                             ; 今の読み込み先のセグメントの上位 4 ビット取り出し
+	AND		AH, 0xF0                             ; 次の読み込み先のセグメントの上位 4 ビット取り出し
+	CMP		AH, BH                               ; 上位 4 ビットを比較
+	POP		AX                                   ; AX の値をスタックから復元
+	JE		.CALL_READ_DISK                      ; 一致しているならば 64 [KB] の境界を跨っていない
+	MOV		BX, ES                               ; ES の値を BX に再複写
+	AND		BH, 0x0F                             ; BX の上位 4 ビットを除去
+	NEG		BX                                   ; BX を符号反転
+	AND		BH, 0x0F                             ; BX の上位 4 ビットを再度除去し、境界までの距離を計算
+	XCHG	AX, BX                               ; AX と BX を交換
+	PUSH	DX                                   ; DX の値をスタックへ退避
+	PUSH	CX                                   ; CX の値をスタックへ退避
+	XOR		DX, DX                               ; DX = 0
+	MOV		CX, BYTES_PER_SECT >> 4              ; CX = BYTES_PER_SECT >> 4
+	DIV		CX                                   ; AX = DX:AX / CX, DX = DX:AX % CX
+	CMP		DX, 0                                ; DX と 0 を比較
+	JNE		.FAIL4                               ; 細かいズレには未対応
+	CMP		AX, 0x40                             ; AX と 0x40 を比較
+	JAE		.FAIL4                               ; 巨大なセクタ数はエラー
+	MOV		AH, [BP + IDX_SECT_CT]               ; セクタ数を AH へ退避
+	MOV		[BP + IDX_SECT_CT], AL               ; 読み込むセクタ数をメモリに保存
+	POP		CX                                   ; CX の値をスタックから復元
+	POP		DX                                   ; DX の値をスタックから復元
 	ROL		CX, 8                                ; シリンダ番号設定位置を調整
 	SHL		CL, 6                                ; シリンダ番号を上位へ移動
 	AND		CL, 0xC0                             ; 最初のセクタ（セクタ番号の部分を 0 に初期化）
 	OR		CL, 0x01                             ; 最初のセクタ（セクタ番号を 1 に再設定）
 	CALL	.READ_DISK                           ; ディスク読み込み
+	MOV		[BP + IDX_SECT_CT], AH               ; セクタ数を AH から復元
+	INC		AL                                   ; セクタ番号を調整
+	AND		CL, 0xC0                             ; セクタ番号の部分を 0 に初期化
+	OR		CL, AL                               ; セクタ番号を AL に再設定
+	MOV		AX, ES                               ; ES の値を AX に複写
+	MOV		AL, 0                                ; AL = 0
+	AND		AH, 0xF0                             ; 上位 4 ビット取り出し
+	ADD		AH, 0x10                             ; AH += 0x10
+	MOV		ES, AX                               ; 読み込み先のセグメントを再設定
+	CALL	.READ_DISK                           ; ディスク読み込み
+	MOV		AX, BX                               ; AX の値を BX から復元
+	POP		BX                                   ; BX の値をスタックから復元
+	JMP		.PREPARE_NEXT                        ; 次の読み込みの準備
+.CALL_READ_DISK:
+	POP		BX                                   ; BX の値をスタックから復元
+	ROL		CX, 8                                ; シリンダ番号設定位置を調整
+	SHL		CL, 6                                ; シリンダ番号を上位へ移動
+	AND		CL, 0xC0                             ; 最初のセクタ（セクタ番号の部分を 0 に初期化）
+	OR		CL, 0x01                             ; 最初のセクタ（セクタ番号を 1 に再設定）
+	CALL	.READ_DISK                           ; ディスク読み込み
+.PREPARE_NEXT:
 	SHR		CL, 6                                ; セクタ番号を除去し、シリンダ番号を下位へ移動
 	ROR		CX, 8                                ; シリンダ番号設定位置を調整
 	INC		DH                                   ; ヘッド番号加算
-	ADD		AX, BX                               ; AX に読み込み先のセグメントを計算
-	MOV		ES, AX                               ; ES に読み込み先のセグメントを設定
+	MOV		ES, AX                               ; ES に次の読み込み先のセグメントを設定
 	JMP		.READ_NEXT                           ; 次の読み込みへ移行する
 
 .FAIL1:
@@ -102,6 +149,9 @@ MBR:
 	JMP		.FAIL_CORE                           ; エラーメッセージ表示処理へ
 .FAIL3:
 	MOV		[.MSG_FAIL_NUM], "3"                 ; エラー番号を 3 に設定
+	JMP		.FAIL_CORE                           ; エラーメッセージ表示処理へ
+.FAIL4:
+	MOV		[.MSG_FAIL_NUM], "4"                 ; エラー番号を 4 に設定
 .FAIL_CORE:
 	MOV		SI, .MSG_FAIL                        ; エラーメッセージ取得
 	CALL	.PRINT                               ; エラーメッセージ表示
@@ -133,22 +183,21 @@ MBR:
 	PUSH	BP                                   ; BP の値をスタックへ退避
 	MOV		BP, ADDR_MBR                         ; BP = ADDR_MBR
 	MOV		AL, [BP + IDX_SECT_CT]               ; セクタ数取得
-	MOV		BH, CL                               ; セクタ番号を BH にコピー
+	MOV		BH, CL                               ; セクタ番号を BH に複写
 	AND		BH, 0x3F                             ; 上位 2 ビットにあるシリンダ番号を除去
 	DEC		BH                                   ; セクタ番号は 1 始まりなので減算して調整
 	SUB		AL, BH                               ; 読み込むセクタ数からセクタ番号を引く
+	MOV		DL, [BP + IDX_DRIVE_NUM]             ; ドライブ番号設定
 	XOR		BX, BX                               ; BX に読み込み先のアドレスを設定
 	XOR		SI, SI                               ; 試行回数はゼロ
 .READ_DISK_RETRY:
 	MOV		AH, 0x02                             ; ディスクからデータを読み込む
-	MOV		DL, [BP + IDX_DRIVE_NUM]             ; ドライブ番号再設定
 	INT		0x13                                 ; BIOS 関数呼び出し
 	JNC		.READ_DISK_END                       ; 成功したら終了
 	INC		SI                                   ; 試行回数加算
 	CMP		SI, ATTEMPTION_LIMIT                 ; 試行回数上限と比較
 	JAE		.FAIL3                               ; 失敗した時
 	MOV		AH, 0x00                             ; ドライブ再設定
-	MOV		DL, [BP + IDX_DRIVE_NUM]             ; ドライブ番号再設定
 	INT		0x13                                 ; BIOS 関数呼び出し
 	JMP		.READ_DISK_RETRY                     ; 再試行
 .READ_DISK_END:
