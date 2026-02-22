@@ -145,6 +145,18 @@ MBR:
 .READ_DISK_RETRY:
 	MOV		AH, 0x02                             ; ディスクからデータを読み込む
 	MOV		DL, [BP + IDX_DRIVE_NUM]             ; ドライブ番号再設定
+
+; ES 書き換えコード（テスト用）
+;	CMP		CX, 0x0101
+;	JNE		.TEST_TMP
+;	CMP		DX, 0x0100
+;	JNE		.TEST_TMP
+;	PUSH	AX
+;	MOV		AX, 0x3E80
+;	MOV		ES, AX
+;	POP		AX
+;.TEST_TMP:
+
 	INT		0x13                                 ; BIOS 関数呼び出し
 	JNC		.READ_DISK_END                       ; 成功したら終了
 	INC		SI                                   ; 試行回数加算
