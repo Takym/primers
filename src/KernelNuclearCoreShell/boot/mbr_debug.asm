@@ -7,6 +7,8 @@ IDX_DRIVE_NUM    EQU     -1 ; ドライブ番号
 IDX_CYLN_CT      EQU     -3 ; シリンダ数
 IDX_HEAD_CT      EQU     -4 ; ヘッド数
 IDX_SECT_CT      EQU     -5 ; セクタ数
+IDX_DTABLE_SEGM  EQU     -7 ; ディスクベーステーブルのセグメント
+IDX_DTABLE_ADDR  EQU     -9 ; ディスクベーステーブルのアドレス
 ATTEMPTION_LIMIT EQU     10 ; 試行回数上限
 
 MBR:
@@ -37,21 +39,22 @@ MBR:
 	STI                                          ; 割り込み許可
 	CLD                                          ; アドレスの増減方向の設定（常に加算モード）
 	MOV		BP, SP                               ; BP = SP
-	SUB		SP, -IDX_SECT_CT                     ; ドライブ情報用のスタックを確保（処理的には加算命令でも良いが、減算に確保、加算に破棄の意図を持たせている）
+	SUB		SP, -IDX_DTABLE_ADDR                 ; ドライブ情報用のスタックを確保（処理的には加算命令でも良いが、減算に確保、加算に破棄の意図を持たせている）
 	MOV		[BP + IDX_DRIVE_NUM], DL             ; ドライブ番号保存
-	MOV		DI, AX                               ; DI = 0（不必要？）
 	MOV		AH, 0x08                             ; ドライブ情報を取得する
 	INT		0x13                                 ; BIOS 関数呼び出し
 	JC		.FAIL1                               ; 失敗した時
-	MOV		AL, CL                               ; セクタ数取得処理
-	AND		AL, 0x3F                             ; セクタ数取得処理
-	SHR		CL, 6                                ; シリンダ数取得処理
-	ROR		CX, 8                                ; シリンダ数取得処理
-	INC		CX                                   ; シリンダ数取得処理
-	INC		DH                                   ; ヘッド数取得処理
-	MOV		[BP + IDX_CYLN_CT], CX               ; シリンダ数保存
-	MOV		[BP + IDX_HEAD_CT], DH               ; ヘッド数保存
-	MOV		[BP + IDX_SECT_CT], AL               ; セクタ数保存
+	MOV		AL, CL                               ; セクタ数の取得処理
+	AND		AL, 0x3F                             ; セクタ数の取得処理
+	SHR		CL, 6                                ; シリンダ数の取得処理
+	ROR		CX, 8                                ; シリンダ数の取得処理
+	INC		CX                                   ; シリンダ数の取得処理
+	INC		DH                                   ; ヘッド数の取得処理
+	MOV		[BP + IDX_CYLN_CT    ], CX           ; シリンダ数を保存
+	MOV		[BP + IDX_HEAD_CT    ], DH           ; ヘッド数を保存
+	MOV		[BP + IDX_SECT_CT    ], AL           ; セクタ数を保存
+	MOV		[BP + IDX_DTABLE_SEGM], ES           ; ディスクベーステーブルのセグメントを保存
+	MOV		[BP + IDX_DTABLE_ADDR], DI           ; ディスクベーステーブルのアドレスを保存
 	MOV		AX, (ADDR_MBR + BYTES_PER_SECT) >> 4 ; AX に読み込み先のセグメントを計算
 	MOV		ES, AX                               ; ES に読み込み先のセグメントを設定
 	MOV		CX, 0x02                             ; 二番目のセクタ＆最初のシリンダ

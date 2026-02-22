@@ -5,7 +5,7 @@
 pushd "%~dp0"
 
 call build.cmd
-wsl -d Ubuntu-24.04 -- qemu-system-x86_64 -drive if=floppy,file=disk.vfd,index=0,media=disk
+wsl -d Ubuntu-24.04 -- qemu-system-x86_64 -drive if=floppy,file=disk.vfd,index=0,media=disk -monitor stdio
 @REM x86_64 の代わりに amd64 も使用できる。
 
 popd
