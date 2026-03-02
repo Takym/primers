@@ -10,6 +10,7 @@ IDX_SECT_CT      EQU     -5 ; セクタ数
 IDX_DTABLE_SEGM  EQU     -7 ; ディスクベーステーブルのセグメント
 IDX_DTABLE_ADDR  EQU     -9 ; ディスクベーステーブルのアドレス
 ATTEMPTION_LIMIT EQU     10 ; 試行回数上限
+MAX_CYLN         EQU     12 ; シリンダ数の上限は取り敢えず 12 とする
 
 MBR:
 	BITS	16
@@ -27,7 +28,9 @@ MBR:
 
 .MSG:
 .MSG_FAIL     DB "DISK SYSTEM ERROR:"
-.MSG_FAIL_NUM DB "0", 0x0D, 0x0A, 0x00
+.MSG_FAIL_NUM DB "0"
+.MSG_CRLF     DB 0x0D, 0x0A, 0x00
+.MSG_BYTE     DB 0x7F, 0x7F, 0x00
 
 .IPL: ; Initial Program Loader (https://takym.github.io/blog/general/2025/08/01/bootloader.html)
 	CLI                                          ; 割り込み禁止
@@ -71,9 +74,12 @@ MBR:
 	MOV		ES, AX                               ; ES に読み込み先のセグメントを設定
 	MOV		CX, 0                                ; 最初のシリンダ
 	MOV		DH, 1                                ; ヘッド番号を 1 に設定
-;	MOV		SI, [BP + IDX_CYLN_CT]               ; シリンダ数を SI にキャッシュ
-	MOV		SI, 3                                ; SI に 2 以上を設定すると必ず失敗する
 	MOV		DL, [BP + IDX_HEAD_CT]               ; ヘッド数を DL にキャッシュ
+;	MOV		SI, [BP + IDX_CYLN_CT]               ; シリンダ数を SI にキャッシュ
+;	CMP		SI, MAX_CYLN                         ; シリンダ数の上限と比較
+;	JBE		.READ_NEXT                           ; 上限以下ならそのまま読み込み開始
+;	MOV		SI, MAX_CYLN                         ; 上限超過なら修正
+	MOV		SI, 4                                ; SI に 2 以上を設定しても成功する様になった
 .READ_NEXT:
 	CMP		DH, DL                               ; ヘッド番号の比較
 	JB		.ADJUST_64KB_BOUND                   ; 最大ヘッド数未満なら読み込み処理開始
@@ -141,7 +147,7 @@ MBR:
 	INC		DH                                   ; ヘッド番号加算
 	MOV		ES, AX                               ; ES に次の読み込み先のセグメントを設定
 	CALL	.PRINT_AX                            ; デバッグ用の表示
-	CALL	.PRINT_LN                            ; デバッグ用の表示
+	CALL	.PRINT_LN                            ; デバッグ用の表示（改行）
 	JMP		.READ_NEXT                           ; 次の読み込みへ移行する
 
 .FAIL1:
@@ -197,14 +203,14 @@ MBR:
 	MOV		AH, 0x02                             ; ディスクからデータを読み込む
 
 ; ES 書き換えコード（テスト用）
-;	CMP		CX, 0x0101
-;	JNE		.TEST_TMP
-;	CMP		DX, 0x0100
-;	JNE		.TEST_TMP
-;	PUSH	AX
-;	MOV		AX, 0x3E80
-;	MOV		ES, AX
-;	POP		AX
+;	CMP		CX, 0x0101                           ; CX = 0x0101 の時
+;	JNE		.TEST_TMP                            ; 一致しなければ処理を続行
+;	CMP		DX, 0x0100                           ; DX = 0x0100 の時
+;	JNE		.TEST_TMP                            ; 一致しなければ処理を続行
+;	PUSH	AX                                   ; AX の値をスタックへ退避
+;	MOV		AX, 0x3E80                           ; セグメントはひとまず 0x3E80 にしてみる
+;	MOV		ES, AX                               ; ES の値を上書き
+;	POP		AX                                   ; AX の値をスタックから復元
 ;.TEST_TMP:
 
 	INT		0x13                                 ; BIOS 関数呼び出し
@@ -228,54 +234,49 @@ MBR:
 	POP		AX                                   ; AX の値をスタックから復元
 	RET                                          ; 制御を呼び出し元へ返す
 
-
-; DEBUG CODE BEGIN
+; ==== DEBUG CODE BEGIN ====
 
 .PRINT_AX:
-	ROL		AX, 8
-	CALL	.PRINT_NUM
-	ROR		AX, 8
-	CALL	.PRINT_NUM
-	CALL	.PRINT_LN
-	RET
+	ROL		AX, 8                                ; AX の上位と下位を入れ替え
+	CALL	.PRINT_NUM                           ; 上位の数値表示
+	ROR		AX, 8                                ; AX を元に戻す
+	CALL	.PRINT_NUM                           ; 下位の数値表示
+	CALL	.PRINT_LN                            ; 改行を表示
+	RET                                          ; 制御を呼び出し元へ返す
 
 .PRINT_NUM:
-	PUSH	CX                  ; CX の値をスタックへ退避
-	PUSH	SI                  ; SI の値をスタックへ退避
-	MOV		CL, AL              ; 数値取得
-	SHR		CL, 4               ; 上位の数値を取得
-	OR		CL, 0x30            ; 文字コードに変換
-	CMP		CL, 0x3A            ; もし CL < 0x3A ならば
-	JB		.PRINT_NUM_SKIP1    ; 次の処理を飛ばす
-	ADD		CL, 7               ; CL += 7
+	PUSH	CX                                   ; CX の値をスタックへ退避
+	PUSH	SI                                   ; SI の値をスタックへ退避
+	MOV		CL, AL                               ; 数値取得
+	SHR		CL, 4                                ; 上位の数値を取得
+	OR		CL, 0x30                             ; 文字コードに変換
+	CMP		CL, 0x3A                             ; もし CL < 0x3A ならば
+	JB		.PRINT_NUM_SKIP1                     ; 次の処理を飛ばす
+	ADD		CL, 7                                ; CL += 7
 .PRINT_NUM_SKIP1:
-	MOV		[.MSG_BYTE + 0], CL ; 上位の数字を設定
-	MOV		CL, AL              ; 数値取得
-	AND		CL, 0x0F            ; 下位の数値を取得
-	OR		CL, 0x30            ; 文字コードに変換
-	CMP		CL, 0x3A            ; もし CL < 0x3A ならば
-	JB		.PRINT_NUM_SKIP2    ; 次の処理を飛ばす
-	ADD		CL, 7               ; CL += 7
+	MOV		[.MSG_BYTE + 0], CL                  ; 上位の数字を設定
+	MOV		CL, AL                               ; 数値取得
+	AND		CL, 0x0F                             ; 下位の数値を取得
+	OR		CL, 0x30                             ; 文字コードに変換
+	CMP		CL, 0x3A                             ; もし CL < 0x3A ならば
+	JB		.PRINT_NUM_SKIP2                     ; 次の処理を飛ばす
+	ADD		CL, 7                                ; CL += 7
 .PRINT_NUM_SKIP2:
-	MOV		[.MSG_BYTE + 1], CL ; 下位の数字を設定
-	MOV		SI, .MSG_BYTE       ; 文字列取得
-	CALL	.PRINT              ; 文字列表示
-	POP		SI                  ; SI の値をスタックから復元
-	POP		CX                  ; CX の値をスタックから復元
-	RET                         ; 制御を呼び出し元へ返す
+	MOV		[.MSG_BYTE + 1], CL                  ; 下位の数字を設定
+	MOV		SI, .MSG_BYTE                        ; 文字列取得
+	CALL	.PRINT                               ; 文字列表示
+	POP		SI                                   ; SI の値をスタックから復元
+	POP		CX                                   ; CX の値をスタックから復元
+	RET                                          ; 制御を呼び出し元へ返す
 
 .PRINT_LN:
-	PUSH	SI            ; SI の値をスタックへ退避
-	MOV		SI, .MSG_CRLF ; 改行文字列取得
-	CALL	.PRINT        ; 文字列表示
-	POP		SI            ; SI の値をスタックから復元
-	RET                   ; 制御を呼び出し元へ返す
+	PUSH	SI                                   ; SI の値をスタックへ退避
+	MOV		SI, .MSG_CRLF                        ; 改行文字列取得
+	CALL	.PRINT                               ; 文字列表示
+	POP		SI                                   ; SI の値をスタックから復元
+	RET                                          ; 制御を呼び出し元へ返す
 
-.MSG_BYTE      DB 0x7F, 0x7F, 0x00
-.MSG_CRLF      DB 0x0D, 0x0A, 0x00
-
-; DEBUG CODE ENDED
-
+; ==== DEBUG CODE ENDED ====
 
 ;	TIMES	0x01BE - ($ - $$) DB 0x00
 
