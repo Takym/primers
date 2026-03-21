@@ -15,4 +15,4 @@ Copyright (C) 2026 Takym.
 * [QEMU](https://www.qemu.org/)
 
 ## 利用規約
-申し訳ございませんが、**未定**です。暫定的ですが、[`kncs/2026-03-02`](https://github.com/Takym/primers/releases/tag/kncs/2026-03-02) に限って　[MIT ライセンス](../ProgrammingLanguageTalking/LICENSE.md)とします。
+申し訳ございませんが、**未定**です。暫定的ですが、[`kncs/2026-03-02`](https://github.com/Takym/primers/releases/tag/kncs/2026-03-02) に限って [MIT ライセンス](../ProgrammingLanguageTalking/LICENSE.md)とします。
